@@ -1,0 +1,185 @@
+# Introduction
+
+Isoreader supports various dual inlet, continuous flow, and scan file formats. This vignette shows how to get started reading these raw IRMS data files and exporting the information to Excel. For more details on isoreader functionality and each file type, please read the **Full Examples** vignettes. For more information on downstream processing with isoverse, check out the [isoprocessor](https://isoprocessor.isoverse.org) package.
+
+```{r, message=FALSE}
+# load isoreader package
+library(isoreader)
+```
+
+# Data files
+
+For demonstration purposes, this vignette simply reads all supported dual inlet, continuous flow, and scan files that are bundled with the isoreader package.
+
+```{r}
+# all available examples
+iso_get_reader_examples() %>% rmarkdown::paged_table()
+```
+
+# Dual Inlet Files
+
+## Read
+
+```{r}
+# read all available examples
+di_files <- iso_read_dual_inlet(iso_get_reader_examples_folder())
+#di_files #shows all the files and their information
+#iso_get_problems(di_files) #shows what is wrong with the files
+```
+
+## Save
+
+```{r}
+# save as r data storage (read back in with iso_read_dual_inlet)
+iso_save(di_files, filepath = "data_output/di_save")
+di_files <- iso_read_dual_inlet("data_output/di_save.di.rds")
+#rds file = R Data Storage file. Good way to share files with others and store files
+```
+
+## Export
+
+```{r}
+# export to excel
+iso_export_to_excel(di_files, filepath = "data_output/di_export")
+```
+
+# Continuous Flow Files
+
+## Read
+
+```{r}
+# read all available examples
+cf_files <- iso_read_continuous_flow(iso_get_reader_examples_folder())
+```
+
+## Save
+
+```{r}
+# save as r data storage (read back in with iso_read_continuous_flow)
+iso_save(cf_files, filepath = "data_output/cf_save")
+cf_files <- iso_read_continuous_flow("data_output/cf_save.cf.rds")
+```
+
+## Export
+
+```{r}
+# export to excel
+iso_export_to_excel(cf_files, filepath = "data_output/cf_export")
+```
+
+# Scan Files
+
+## Read
+
+```{r}
+# read all available examples
+scan_files <- iso_read_scan(iso_get_reader_examples_folder())
+```
+
+## Save
+
+```{r}
+# save as r data storage (read back in with iso_read_scan)
+iso_save(scan_files, filepath = "data_output/scan_save")
+scan_files <- iso_read_scan("data_output/scan_save.scan.rds")
+```
+
+## Export
+
+```{r}
+# export to excel
+iso_export_to_excel(scan_files, filepath = "data_output/scan_export")
+```
+
+# Visualization
+
+```{r, message=FALSE}
+library(isoprocessor)
+library(tidyverse)
+```
+
+```{r}
+# continuous flow files
+cf_files
+```
+
+## Pick relevant files & information
+##Filter out the files you are actually interested in
+
+```{r}
+cf_files %>% iso_get_file_info()
+```
+
+
+```{r}
+my_cf_files <- cf_files %>% 
+  # filter files
+  iso_filter_files(str_detect(file_id, "continuous")) %>% 
+  # set peak table
+  iso_set_peak_table_from_auto_vendor_data_table() %>% 
+  # select relevant file info
+  iso_select_file_info(
+    file_datetime, 
+    analysis = Analysis, id1 = `Identifier 1`, id2 = `Identifier 2`, 
+    prep = Preparation, comment = Comment
+  ) %>% 
+  # converting mV to V and mVs to Vs
+  iso_convert_peak_table_units(V = mV, Vs = mVs)
+
+my_cf_files
+peak_tables <- my_cf_files %>% iso_get_peak_table() %>%  iso_make_units_explicit() #makes units obsvious within the table
+view(peak_tables)
+```
+
+## Plot
+
+```{r}
+iso_plot_continuous_flow_data(my_cf_files)
+```
+
+## Styling the data
+```{r}
+?iso_plot_continuous_flow_data #gives you all the options for plotting continuous flow data
+iso_plot_continuous_flow_data(
+  iso_files = my_cf_files,
+  data = c("2","3"), #selecting just for mass 2 and 3
+  time_interval = c(500,800),
+  color = data,
+  panel = id1,
+  peak_label = iso_format(rt, signif = 2),
+  peak_label_size = 5,
+  peak_label_filter = rt < 700,
+  peak_marker = TRUE, #makes dashed line on middle of peak
+  peak_bounds = TRUE #make gray bar across width of area integrated
+  ) 
+
+```
+
+
+
+
+```{r}
+iso_plot_continuous_flow_data(
+  iso_files = my_cf_files,
+  data = c("2", "3"),
+  time_interval = c(700, 900),
+  time_interval_units = "s",
+  panel = NULL,
+  color = data,
+  peak_label = iso_format(rt),
+  peak_label_size = 5,
+  peak_bounds = TRUE,
+  peak_marker = TRUE, 
+  peak_label_filter = data == "2 [mV]",
+)
+
+ggsave("fig_output/my_fancy_chromatogram.pdf")
+```
+
+```{r, warning=FALSE, message=FALSE}
+library(plotly)
+ggplotly(dynamicTicks = TRUE)
+```
+
+
+
